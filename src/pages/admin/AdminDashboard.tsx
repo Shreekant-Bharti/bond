@@ -13,6 +13,10 @@ import {
   TrendingUp,
   AlertTriangle,
   BarChart3,
+  PieChart,
+  Coins,
+  DollarSign,
+  Activity,
 } from "lucide-react";
 import {
   getCurrentSession,
@@ -24,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { bonds } = useBondContext();
+  const { bonds, transactions } = useBondContext();
   const [admin, setAdmin] = useState(getCurrentSession());
 
   useEffect(() => {
@@ -50,6 +54,24 @@ export default function AdminDashboard() {
   );
   const pendingBonds = bonds.filter((b) => b.approvalStatus === "pending");
   const approvedBonds = bonds.filter((b) => b.approvalStatus === "approved");
+
+  // Calculate token analytics
+  const totalTokensSold = bonds.reduce(
+    (sum, b) => sum + (b.totalSupply - b.availableSupply),
+    0
+  );
+  const activeBondsWithSales = bonds.filter(
+    (b) => b.totalSupply - b.availableSupply > 0
+  ).length;
+  const activeListers = users.filter(
+    (u) =>
+      u.verificationStatus === "verified" &&
+      (u.role === "broker" ||
+        u.role === "custodian" ||
+        u.role === "financial_institution" ||
+        u.role === "government_partner")
+  ).length;
+  const highYieldBonds = approvedBonds.filter((b) => b.yield >= 7).length;
 
   if (!admin) return null;
 
@@ -86,7 +108,7 @@ export default function AdminDashboard() {
         </h2>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="p-5 bg-gradient-to-br from-warning/10 to-card/40 border-border/50">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
@@ -135,9 +157,72 @@ export default function AdminDashboard() {
                 <TrendingUp className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Approved Bonds</p>
+                <p className="text-sm text-muted-foreground">Listed Bonds</p>
                 <p className="text-3xl font-bold text-foreground">
                   {approvedBonds.length}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Token & Analytics Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="p-5 bg-gradient-to-br from-purple-500/10 to-card/40 border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Coins className="w-6 h-6 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Tokens Sold</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {totalTokensSold.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-blue-500/10 to-card/40 border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Listers</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {activeListers}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-green-500/10 to-card/40 border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  High Yield Bonds
+                </p>
+                <p className="text-3xl font-bold text-foreground">
+                  {highYieldBonds}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-pink-500/10 to-card/40 border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-pink-500/20 flex items-center justify-center">
+                <PieChart className="w-6 h-6 text-pink-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Bonds with Sales
+                </p>
+                <p className="text-3xl font-bold text-foreground">
+                  {activeBondsWithSales}
                 </p>
               </div>
             </div>
@@ -242,7 +327,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Navigation Links */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-4">
           <Link to="/admin/pending-users" className="block">
             <Card
               className={cn(
@@ -265,16 +350,22 @@ export default function AdminDashboard() {
               <p className="text-sm font-medium">Pending Bonds</p>
             </Card>
           </Link>
+          <Link to="/admin/token-analytics" className="block">
+            <Card className="p-4 text-center hover:border-primary/50 transition-all cursor-pointer border-purple-500/30">
+              <PieChart className="w-6 h-6 mx-auto mb-2 text-purple-500" />
+              <p className="text-sm font-medium">Token Analytics</p>
+            </Card>
+          </Link>
           <Link to="/admin/all-users" className="block">
             <Card className="p-4 text-center hover:border-primary/50 transition-all cursor-pointer">
-              <BarChart3 className="w-6 h-6 mx-auto mb-2 text-primary" />
+              <Users className="w-6 h-6 mx-auto mb-2 text-blue-500" />
               <p className="text-sm font-medium">All Users</p>
             </Card>
           </Link>
-          <Link to="/admin/all-bonds" className="block">
+          <Link to="/admin/bond-analytics" className="block">
             <Card className="p-4 text-center hover:border-primary/50 transition-all cursor-pointer">
-              <TrendingUp className="w-6 h-6 mx-auto mb-2 text-primary" />
-              <p className="text-sm font-medium">All Bonds</p>
+              <BarChart3 className="w-6 h-6 mx-auto mb-2 text-primary" />
+              <p className="text-sm font-medium">Bond Analytics</p>
             </Card>
           </Link>
         </div>

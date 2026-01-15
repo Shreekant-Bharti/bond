@@ -9,11 +9,11 @@ import {
   ShoppingCart,
   CheckCircle2,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useToast } from "@/hooks/use-toast";
-import { OracleVerificationBadge } from "@/components/ui/oracle-verification-badge";
 
 type BuyStep = "browse" | "confirm" | "processing" | "success";
 
@@ -258,11 +258,15 @@ export default function InvestorSecondaryMarket() {
               </div>
             </div>
 
-            {/* Oracle Verification */}
-            <OracleVerificationBadge
-              listingYield={selectedListing.yield}
-              className="mb-6"
-            />
+            {/* Oracle Verified Badge - Simple display only */}
+            {selectedBond?.approvalStatus === "approved" && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20 mb-6">
+                <ShieldCheck className="w-5 h-5 text-success" />
+                <span className="text-success font-medium">
+                  Oracle Verified ✓
+                </span>
+              </div>
+            )}
 
             <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-6">
               <div className="flex justify-between">

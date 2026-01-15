@@ -83,7 +83,7 @@ const initialBondForm: NewBondForm = {
   couponFrequency: "",
   tenure: 0,
   maturityDate: "",
-  minInvestment: 1, // Minimum $1 investment
+  minInvestment: 1, // Minimum ₹1 investment
   maxUnitsPerInvestor: 0,
   issueDate: "",
   listingStartDate: "",
@@ -116,7 +116,7 @@ export default function BrokerCreateListing() {
   const [listStep, setListStep] = useState<ListStep>("select");
   const [selectedBondId, setSelectedBondId] = useState("");
   const [listingConfig, setListingConfig] = useState({
-    minInvestmentUnit: 1, // Minimum $1
+    minInvestmentUnit: 1, // Minimum ₹1
     availableQuantity: 0,
     listingStartDate: "",
     listingEndDate: "",
@@ -157,9 +157,9 @@ export default function BrokerCreateListing() {
 
   const validateInvestmentRules = (): boolean => {
     const errors: string[] = [];
-    // Enforce minimum $1 investment
+    // Enforce minimum ₹1 investment
     if (bondForm.minInvestment < 1)
-      errors.push("Minimum investment must be at least $1");
+      errors.push("Minimum investment must be at least ₹1");
     if (bondForm.maxUnitsPerInvestor <= 0)
       errors.push("Maximum units per investor must be greater than 0");
     if (!bondForm.issueDate) errors.push("Issue date is required");
@@ -200,7 +200,7 @@ export default function BrokerCreateListing() {
     setCreateStep("processing");
 
     setTimeout(() => {
-      // Enforce minimum $1 investment
+      // Enforce minimum ₹1 investment
       const minInvestment = Math.max(1, bondForm.minInvestment);
 
       const newBondId = createBond({
@@ -611,21 +611,26 @@ export default function BrokerCreateListing() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="totalBondValue">
-                        Total Bond Value ($) *
+                        Total Bond Value (₹ INR) *
                       </Label>
-                      <Input
-                        id="totalBondValue"
-                        type="number"
-                        min={1}
-                        placeholder="e.g., 1000000"
-                        value={bondForm.value || ""}
-                        onChange={(e) =>
-                          updateBondForm({
-                            value: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        className="bg-muted/20 border-border/50"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          ₹
+                        </span>
+                        <Input
+                          id="totalBondValue"
+                          type="number"
+                          min={1}
+                          placeholder="e.g., 10,00,000"
+                          value={bondForm.value || ""}
+                          onChange={(e) =>
+                            updateBondForm({
+                              value: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="bg-muted/20 border-border/50 pl-8"
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="totalSupply">
@@ -635,7 +640,7 @@ export default function BrokerCreateListing() {
                         id="totalSupply"
                         type="number"
                         min={1}
-                        placeholder="e.g., 100000"
+                        placeholder="e.g., 10000"
                         value={bondForm.totalSupply || ""}
                         onChange={(e) =>
                           updateBondForm({
@@ -646,12 +651,15 @@ export default function BrokerCreateListing() {
                       />
                     </div>
 
-                    {/* Auto-calculated Face Value */}
+                    {/* Auto-calculated Token Price in INR */}
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center gap-2">
-                        <Label>Face Value (Auto-calculated)</Label>
+                        <Label>Token Price (₹ INR - Auto-calculated)</Label>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
                           Auto
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success font-medium ml-auto">
+                          🇮🇳 INR
                         </span>
                       </div>
                       <div className="relative">
@@ -660,7 +668,7 @@ export default function BrokerCreateListing() {
                           readOnly
                           value={
                             bondForm.value > 0 && bondForm.totalSupply > 0
-                              ? `$${(
+                              ? `₹${(
                                   bondForm.value / bondForm.totalSupply
                                 ).toFixed(2)} per token`
                               : "Enter Total Bond Value and Number of Tokens"
@@ -670,14 +678,15 @@ export default function BrokerCreateListing() {
                         {bondForm.value > 0 && bondForm.totalSupply > 0 && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
                             <span className="text-xs text-muted-foreground">
-                              = {bondForm.value.toLocaleString()} ÷{" "}
-                              {bondForm.totalSupply.toLocaleString()}
+                              = ₹{bondForm.value.toLocaleString("en-IN")} ÷{" "}
+                              {bondForm.totalSupply.toLocaleString("en-IN")}
                             </span>
                           </div>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Face Value = Total Bond Value ÷ Number of Tokens
+                        Token Price = Total Bond Value ÷ Number of Tokens (All
+                        values in INR ₹)
                       </p>
                     </div>
 
@@ -1063,7 +1072,7 @@ export default function BrokerCreateListing() {
                           Face Value:
                         </span>{" "}
                         <span className="text-foreground ml-2">
-                          ${bondForm.value.toLocaleString()}
+                          ₹{bondForm.value.toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div>
@@ -1155,10 +1164,10 @@ export default function BrokerCreateListing() {
                         Total Issue Value
                       </span>
                       <span className="text-primary font-bold text-lg">
-                        $
-                        {(
-                          bondForm.value * bondForm.totalSupply
-                        ).toLocaleString()}
+                        ₹
+                        {(bondForm.value * bondForm.totalSupply).toLocaleString(
+                          "en-IN"
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1339,7 +1348,7 @@ export default function BrokerCreateListing() {
                             Available: {bond.availableSupply.toLocaleString()}
                           </span>
                           <span className="text-muted-foreground">
-                            Value: ${bond.value}
+                            Value: ₹{bond.value.toLocaleString("en-IN")}
                           </span>
                         </div>
                       </div>

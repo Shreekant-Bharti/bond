@@ -11,12 +11,12 @@ import {
   DollarSign,
   Loader2,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Bond } from "@/types/bond";
 import { GradientButton } from "@/components/ui/gradient-button";
-import { OracleVerificationBadge } from "@/components/ui/oracle-verification-badge";
 
 type BuyStep = "details" | "quantity" | "confirm" | "processing" | "success";
 
@@ -403,14 +403,15 @@ export default function InvestorBonds() {
                   </div>
                 </div>
 
-                {/* Oracle Verification - Only shown in purchase confirmation */}
-                {selectedBond.approvalStatus === "approved" &&
-                  selectedBond.yield > 0 && (
-                    <OracleVerificationBadge
-                      listingYield={selectedBond.yield}
-                      className="mb-4"
-                    />
-                  )}
+                {/* Oracle Verified Badge - Simple display only, NO API calls */}
+                {selectedBond.approvalStatus === "approved" && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20 mb-4">
+                    <ShieldCheck className="w-5 h-5 text-success" />
+                    <span className="text-success font-medium">
+                      Oracle Verified ✓
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button

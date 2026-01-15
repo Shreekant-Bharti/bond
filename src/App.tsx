@@ -34,6 +34,9 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPendingUsers from "./pages/admin/AdminPendingUsers";
 import AdminPendingBonds from "./pages/admin/AdminPendingBonds";
+import AdminTokenAnalytics from "./pages/admin/AdminTokenAnalytics";
+import AdminAllUsers from "./pages/admin/AdminAllUsers";
+import AdminBondAnalytics from "./pages/admin/AdminBondAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +63,15 @@ const App = () => (
             <Route
               path="/admin/pending-bonds"
               element={<AdminPendingBonds />}
+            />
+            <Route
+              path="/admin/token-analytics"
+              element={<AdminTokenAnalytics />}
+            />
+            <Route path="/admin/all-users" element={<AdminAllUsers />} />
+            <Route
+              path="/admin/bond-analytics"
+              element={<AdminBondAnalytics />}
             />
             {/* Investor Routes */}
             <Route path="/investor" element={<InvestorDashboard />} />

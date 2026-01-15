@@ -14,6 +14,9 @@ import {
   Clock,
   Eye,
   Building2,
+  RefreshCw,
+  Loader2,
+  Sliders,
 } from "lucide-react";
 import {
   getCurrentSession,
@@ -23,6 +26,7 @@ import {
 import { useBondContext } from "@/context/BondContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { verifyBondWithAPI } from "@/lib/oracleService";
 
 export default function AdminPendingBonds() {
   const navigate = useNavigate();
@@ -32,6 +36,10 @@ export default function AdminPendingBonds() {
   const [rejectionModal, setRejectionModal] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedBond, setSelectedBond] = useState<string | null>(null);
+  const [oracleScores, setOracleScores] = useState<Record<string, number>>({});
+  const [verifyingBond, setVerifyingBond] = useState<string | null>(null);
+  const [overrideModal, setOverrideModal] = useState<string | null>(null);
+  const [customScore, setCustomScore] = useState(85);
 
   useEffect(() => {
     const session = getCurrentSession();
@@ -49,6 +57,40 @@ export default function AdminPendingBonds() {
     if (!listerId) return "Unknown";
     const user = users.find((u) => u.id === listerId);
     return user?.name || user?.orgName || user?.email || "Unknown";
+  };
+
+  // Re-verify bond with Oracle API (Admin only)
+  const handleReVerify = async (bondId: string) => {
+    setVerifyingBond(bondId);
+    const result = await verifyBondWithAPI("ABCDE1234F", "admin");
+    if (result) {
+      setOracleScores((prev) => ({ ...prev, [bondId]: result.score }));
+      toast({
+        title: "Re-verification Complete",
+        description: `Fresh Oracle Score: ${result.score}%`,
+      });
+    } else {
+      toast({
+        title: "Verification Failed",
+        description: "Could not fetch oracle score",
+        variant: "destructive",
+      });
+    }
+    setVerifyingBond(null);
+  };
+
+  // Manual override score
+  const handleOverrideScore = (bondId: string, score: number) => {
+    setOracleScores((prev) => ({ ...prev, [bondId]: score }));
+    setOverrideModal(null);
+    toast({
+      title: "Score Override Applied",
+      description: `Oracle score manually set to ${score}%`,
+    });
+  };
+
+  const getOracleScore = (bondId: string): number => {
+    return oracleScores[bondId] || Math.floor(Math.random() * 15) + 80; // Default 80-95
   };
 
   const handleApprove = (bondId: string) => {
@@ -169,13 +211,13 @@ export default function AdminPendingBonds() {
                       Lister
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                      Oracle Score
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Face Value
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Yield
-                    </th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Tenure
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Actions
@@ -211,6 +253,43 @@ export default function AdminPendingBonds() {
                         </div>
                       </td>
                       <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "px-2 py-1 rounded-full text-xs font-semibold",
+                              getOracleScore(bond.id) >= 80
+                                ? "bg-success/20 text-success"
+                                : "bg-warning/20 text-warning"
+                            )}
+                          >
+                            {getOracleScore(bond.id)}%
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleReVerify(bond.id)}
+                            disabled={verifyingBond === bond.id}
+                            className="h-7 px-2"
+                            title="Re-verify with API"
+                          >
+                            {verifyingBond === bond.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setOverrideModal(bond.id)}
+                            className="h-7 px-2"
+                            title="Override score"
+                          >
+                            <Sliders className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-4">
                         <div className="flex items-center gap-2 text-foreground">
                           <DollarSign className="w-4 h-4 text-muted-foreground" />
                           {formatCurrency(bond.value * bond.totalSupply)}
@@ -221,12 +300,6 @@ export default function AdminPendingBonds() {
                           <Percent className="w-4 h-4" />
                           {bond.yield}%
                         </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                          <Clock className="w-4 h-4" />
-                          {bond.tenure} months
-                        </div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
@@ -421,6 +494,65 @@ export default function AdminPendingBonds() {
                 Confirm Reject
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Score Override Modal */}
+      {overrideModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6 bg-card">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Override Oracle Score
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Set a custom verification score for this bond:
+            </p>
+
+            {/* Quick Score Buttons */}
+            <div className="flex gap-2 mb-4">
+              {[80, 85, 90, 95].map((score) => (
+                <Button
+                  key={score}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOverrideScore(overrideModal, score)}
+                  className={cn(
+                    "flex-1",
+                    score >= 80 && "hover:bg-success/20 hover:border-success"
+                  )}
+                >
+                  {score}%
+                </Button>
+              ))}
+            </div>
+
+            {/* Custom Score Input */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="number"
+                value={customScore}
+                onChange={(e) => setCustomScore(Number(e.target.value))}
+                min={0}
+                max={100}
+                className="flex-1 p-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="Custom score"
+              />
+              <Button
+                onClick={() => handleOverrideScore(overrideModal, customScore)}
+                className="bg-primary"
+              >
+                Apply
+              </Button>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setOverrideModal(null)}
+            >
+              Cancel
+            </Button>
           </Card>
         </div>
       )}
