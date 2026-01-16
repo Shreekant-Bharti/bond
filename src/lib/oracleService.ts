@@ -1,8 +1,12 @@
 // Oracle Rate Verification Service
 // Simulates Chainlink Functions for fetching Indian Government Bond reference yields
+// Now integrated with WeilChain for decentralized oracle verification
+
+import { weilChainClient, verifyIssuerOnWeilChain, type VerificationResult } from './weilchain';
 
 const API_KEY = "key_live_a4ee881176c74a9eaa9539abc94062ad";
 const ORACLE_STORAGE_KEY = "bondfi_oracle_data";
+const WEILCHAIN_ENABLED = true; // Toggle WeilChain integration
 
 // Tolerance for rate verification (in percentage points)
 const RATE_TOLERANCE = 0.75; // Allow ±0.75% difference
@@ -23,6 +27,8 @@ export const verifyBondWithAPI = async (
   score: number;
   verified: boolean;
   error?: string;
+  weilChainVerified?: boolean;
+  weilChainData?: VerificationResult;
 } | null> => {
   // Block investor API access
   if (role === "investor") {
@@ -31,7 +37,20 @@ export const verifyBondWithAPI = async (
   }
 
   try {
-    // Simulate API call with the key
+    // Use WeilChain for verification if enabled
+    if (WEILCHAIN_ENABLED) {
+      console.log("[Oracle] Using WeilChain for verification...");
+      const weilResult = await verifyIssuerOnWeilChain(pan);
+      
+      return {
+        score: weilResult.score,
+        verified: weilResult.recommended,
+        weilChainVerified: true,
+        weilChainData: weilResult,
+      };
+    }
+
+    // Fallback to simulated API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Generate oracle score based on PAN validation
@@ -42,12 +61,14 @@ export const verifyBondWithAPI = async (
     return {
       score,
       verified: score >= 80,
+      weilChainVerified: false,
     };
   } catch (error) {
     return {
       score: 0,
       verified: false,
       error: error instanceof Error ? error.message : "API Error",
+      weilChainVerified: false,
     };
   }
 };
@@ -206,4 +227,23 @@ export const formatOracleTimestamp = (isoString: string): string => {
 // Get the Chainlink architecture explanation
 export const getChainlinkExplanation = (): string => {
   return `This MVP uses live API data to simulate Chainlink Functions. In production, Chainlink nodes fetch Indian Government Bond rates from trusted APIs and deliver them on-chain for transparent pricing.`;
+};
+
+// WeilChain integration helpers
+export const isWeilChainEnabled = (): boolean => WEILCHAIN_ENABLED;
+
+export const getWeilChainStatus = async (): Promise<{
+  enabled: boolean;
+  connected: boolean;
+}> => {
+  if (!WEILCHAIN_ENABLED) {
+    return { enabled: false, connected: false };
+  }
+  
+  try {
+    const connected = await weilChainClient.connect();
+    return { enabled: true, connected };
+  } catch {
+    return { enabled: true, connected: false };
+  }
 };

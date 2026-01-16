@@ -37,6 +37,7 @@ import AdminPendingBonds from "./pages/admin/AdminPendingBonds";
 import AdminTokenAnalytics from "./pages/admin/AdminTokenAnalytics";
 import AdminAllUsers from "./pages/admin/AdminAllUsers";
 import AdminBondAnalytics from "./pages/admin/AdminBondAnalytics";
+import HackathonDemo from "./pages/HackathonDemo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* BondFi Hackathon MVP - Demo Route */}
+            <Route path="/demo" element={<HackathonDemo />} />
             <Route path="/" element={<Splash />} />
             <Route path="/landing" element={<Landing />} />
             <Route path="/login" element={<Login />} />

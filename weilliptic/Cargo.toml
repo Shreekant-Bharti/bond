@@ -1,0 +1,19 @@
+[package]
+name = "bondfi-compliance"
+version = "0.1.0"
+edition = "2021"
+authors = ["BondFi Team"]
+description = "BondFi Compliance Engine for WeilChain"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+weilliptic-sdk = { version = "0.1", features = ["wasm"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+wasm-bindgen = "0.2"
+
+[profile.release]
+opt-level = "s"
+lto = true

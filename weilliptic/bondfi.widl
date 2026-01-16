@@ -1,0 +1,24 @@
+@security("bondfi::compliance")
+interface BondFiCompliance {
+  query func verifyIssuer(pan: string) -> VerificationResult;
+  mutate func approveBond(
+    bondId: string,
+    pan: string,
+    yieldPercent: float,
+    faceValue: uint
+  ) -> ApprovalResult;
+}
+
+type VerificationResult {
+  score: uint8,       // 0-100 compliance score
+  deviation: float32, // % deviation from standard
+  gstValid: bool,     // GST registration status
+  turnover: uint64,   // Turnover in INR
+  recommended: bool   // Recommendation for approval
+}
+
+type ApprovalResult {
+  approved: bool,     // Final approval status
+  txId: string,       // WeilChain transaction ID
+  oracleScore: uint8  // Oracle verification score
+}
