@@ -30,6 +30,13 @@ export interface Bond {
   description: string;
   listerSubType?: ListerSubType;
   listerId?: string; // ID of the lister who created the bond
+  /**
+   * Oracle Compliance Score (0-100)
+   * NOTE: Currently this is DEMO/MOCK data.
+   * TODO: When RBI / official KYC / PAN / bond data APIs are integrated,
+   * this field will be populated from real oracle sources.
+   */
+  oracleScore?: number;
 }
 
 export interface BondPurchase {

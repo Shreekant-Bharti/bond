@@ -39,6 +39,7 @@ import {
   isDemoUser,
   creditListerBalance,
   generateTokenId,
+  addAdminNotification,
 } from "@/lib/userStorage";
 
 interface ComplianceMetrics {
@@ -485,6 +486,27 @@ export function BondProvider({ children }: { children: ReactNode }) {
       listings: [],
     });
 
+    // Send notification to Admin about new user registration
+    const userTypeLabel =
+      userData.role === "investor"
+        ? "Investor"
+        : userData.role === "broker"
+        ? "Broker"
+        : userData.role === "custodian"
+        ? "Custodian"
+        : userData.role === "financial_institution"
+        ? "Financial Institution"
+        : "Government Partner";
+
+    addAdminNotification({
+      type: "new_user_request",
+      title: `New ${userTypeLabel} Registration`,
+      message: `${
+        userData.orgName || userData.name || userData.email
+      } (${userTypeLabel}) has registered and is pending KYC verification.`,
+      userId: user.id,
+    });
+
     return { success: true, user };
   };
 
@@ -761,6 +783,15 @@ export function BondProvider({ children }: { children: ReactNode }) {
     bondData: Omit<Bond, "id" | "createdAt" | "status" | "approvalStatus">
   ): string => {
     const newBondId = `bond-${Date.now()}`;
+
+    /**
+     * Generate initial Oracle Score for the bond
+     * NOTE: This is DEMO/MOCK data - generates a random score between 60-95
+     * TODO: When RBI / official KYC / PAN / bond data APIs are integrated,
+     * this score will be fetched from real oracle sources.
+     */
+    const initialOracleScore = Math.floor(Math.random() * 36) + 60; // 60-95 range for demo
+
     const newBond: Bond = {
       ...bondData,
       id: newBondId,
@@ -769,6 +800,7 @@ export function BondProvider({ children }: { children: ReactNode }) {
       approvalStatus: "pending",
       minInvestment: 1,
       listerId: currentUser?.id || broker.id,
+      oracleScore: initialOracleScore, // Store initial oracle score
     };
 
     setBonds((prev) => [...prev, newBond]);
@@ -806,6 +838,15 @@ export function BondProvider({ children }: { children: ReactNode }) {
         prev.totalValueIssued + bondData.value * bondData.totalSupply,
       pendingVerifications: prev.pendingVerifications + 1,
     }));
+
+    // Send notification to Admin about new bond request
+    addAdminNotification({
+      type: "new_bond_request",
+      title: `New Bond Request - ${bondData.name}`,
+      message: `Issuer "${bondData.issuer}" submitted a new bond listing with ${bondData.yield}% yield. Oracle Score: ${initialOracleScore}/100. Pending your approval.`,
+      bondId: newBondId,
+      oracleScore: initialOracleScore,
+    });
 
     return newBondId;
   };

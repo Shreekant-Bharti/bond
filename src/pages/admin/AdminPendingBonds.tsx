@@ -27,6 +27,7 @@ import { useBondContext } from "@/context/BondContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { verifyBondWithAPI } from "@/lib/oracleService";
+import { AdminNotificationBell } from "@/components/ui/AdminNotificationBell";
 
 export default function AdminPendingBonds() {
   const navigate = useNavigate();
@@ -79,22 +80,59 @@ export default function AdminPendingBonds() {
     setVerifyingBond(null);
   };
 
-  // Manual override score
+  // TODO: Remove admin oracle override when real RBI / PAN oracle is integrated.
+  // Manual override score (DEMO ONLY - will be removed in production)
   const handleOverrideScore = (bondId: string, score: number) => {
     setOracleScores((prev) => ({ ...prev, [bondId]: score }));
     setOverrideModal(null);
     toast({
-      title: "Score Override Applied",
-      description: `Oracle score manually set to ${score}%`,
+      title: "Score Override Applied (Demo Mode)",
+      description: `Oracle score manually set to ${score}%. This override is for demo purposes only.`,
     });
   };
 
+  /**
+   * Get Oracle Score for a bond
+   * Priority: 1) Admin overridden score, 2) Bond's stored oracleScore, 3) Generate demo score
+   * NOTE: Currently using DEMO/MOCK data. Real oracle integration pending.
+   */
   const getOracleScore = (bondId: string): number => {
-    return oracleScores[bondId] || Math.floor(Math.random() * 15) + 80; // Default 80-95
+    // Check if admin has overridden this score
+    if (oracleScores[bondId] !== undefined) {
+      return oracleScores[bondId];
+    }
+    // Check if bond has a stored oracle score
+    const bond = bonds.find((b) => b.id === bondId);
+    if (bond?.oracleScore !== undefined) {
+      return bond.oracleScore;
+    }
+    // Generate a demo score (this simulates oracle response)
+    // TODO: Replace with real oracle API call when RBI/KYC APIs are integrated
+    return Math.floor(Math.random() * 30) + 60; // Demo: 60-90 range to test threshold
+  };
+
+  /**
+   * Check if approval is allowed based on oracle score
+   * Rule: Oracle score must be >= 80 to approve
+   */
+  const canApprove = (bondId: string): boolean => {
+    return getOracleScore(bondId) >= 80;
   };
 
   const handleApprove = (bondId: string) => {
     if (!admin) return;
+
+    // Enforce oracle score >= 80 rule
+    const score = getOracleScore(bondId);
+    if (score < 80) {
+      toast({
+        title: "Cannot Approve",
+        description:
+          "Oracle score must be 80+ to approve this bond. Use the override option if needed for demo.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const bond = bonds.find((b) => b.id === bondId);
     const result = approveBond(bondId, true);
@@ -179,6 +217,7 @@ export default function AdminPendingBonds() {
               </p>
             </div>
           </div>
+          <AdminNotificationBell />
         </div>
       </header>
 
@@ -253,40 +292,47 @@ export default function AdminPendingBonds() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              "px-2 py-1 rounded-full text-xs font-semibold",
-                              getOracleScore(bond.id) >= 80
-                                ? "bg-success/20 text-success"
-                                : "bg-warning/20 text-warning"
-                            )}
-                          >
-                            {getOracleScore(bond.id)}%
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleReVerify(bond.id)}
-                            disabled={verifyingBond === bond.id}
-                            className="h-7 px-2"
-                            title="Re-verify with API"
-                          >
-                            {verifyingBond === bond.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3" />
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setOverrideModal(bond.id)}
-                            className="h-7 px-2"
-                            title="Override score"
-                          >
-                            <Sliders className="w-3 h-3" />
-                          </Button>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "px-2 py-1 rounded-full text-xs font-semibold",
+                                getOracleScore(bond.id) >= 80
+                                  ? "bg-success/20 text-success"
+                                  : "bg-destructive/20 text-destructive"
+                              )}
+                            >
+                              {getOracleScore(bond.id)}%
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleReVerify(bond.id)}
+                              disabled={verifyingBond === bond.id}
+                              className="h-7 px-2"
+                              title="Re-verify with API"
+                            >
+                              {verifyingBond === bond.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-3 h-3" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setOverrideModal(bond.id)}
+                              className="h-7 px-2"
+                              title="Admin Demo Override - Set custom score"
+                            >
+                              <Sliders className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          {getOracleScore(bond.id) < 80 && (
+                            <span className="text-xs text-destructive">
+                              Score must be 80+ to approve
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-4">
@@ -314,7 +360,18 @@ export default function AdminPendingBonds() {
                           <Button
                             size="sm"
                             onClick={() => handleApprove(bond.id)}
-                            className="bg-success hover:bg-success/90 text-white"
+                            disabled={!canApprove(bond.id)}
+                            className={cn(
+                              "text-white",
+                              canApprove(bond.id)
+                                ? "bg-success hover:bg-success/90"
+                                : "bg-muted cursor-not-allowed opacity-50"
+                            )}
+                            title={
+                              !canApprove(bond.id)
+                                ? "Cannot approve: Oracle score must be 80+"
+                                : "Approve this bond"
+                            }
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
                             Approve
@@ -382,6 +439,26 @@ export default function AdminPendingBonds() {
                   </p>
                 </div>
                 <div>
+                  <p className="text-sm text-muted-foreground">Oracle Score</p>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "px-2 py-1 rounded-full text-xs font-semibold",
+                        getOracleScore(selectedBondData.id) >= 80
+                          ? "bg-success/20 text-success"
+                          : "bg-destructive/20 text-destructive"
+                      )}
+                    >
+                      {getOracleScore(selectedBondData.id)}%
+                    </span>
+                    {getOracleScore(selectedBondData.id) < 80 && (
+                      <span className="text-xs text-destructive">
+                        (Must be 80+ to approve)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <p className="text-sm text-muted-foreground">Annual Yield</p>
                   <p className="font-medium text-success">
                     {selectedBondData.yield}%
@@ -431,9 +508,28 @@ export default function AdminPendingBonds() {
               </div>
             </div>
 
+            {/* Show warning if oracle score is below threshold */}
+            {getOracleScore(selectedBondData.id) < 80 && (
+              <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Cannot approve: Oracle score must be 80+
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use the Override option from the table to set a custom score
+                  for demo purposes.
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-3 mt-6 pt-4 border-t border-border">
               <Button
-                className="flex-1 bg-success hover:bg-success/90 text-white"
+                disabled={!canApprove(selectedBondData.id)}
+                className={cn(
+                  "flex-1 text-white",
+                  canApprove(selectedBondData.id)
+                    ? "bg-success hover:bg-success/90"
+                    : "bg-muted cursor-not-allowed opacity-50"
+                )}
                 onClick={() => {
                   handleApprove(selectedBondData.id);
                   setSelectedBond(null);
@@ -498,15 +594,25 @@ export default function AdminPendingBonds() {
         </div>
       )}
 
-      {/* Score Override Modal */}
+      {/* Score Override Modal - ADMIN DEMO ONLY */}
       {overrideModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md p-6 bg-card">
-            <h3 className="text-lg font-semibold text-foreground mb-4">
-              Override Oracle Score
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Override Oracle Score (Admin Demo)
             </h3>
+
+            {/* Demo Notice */}
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ <strong>Temporary admin override</strong> – This option will
+                be removed when RBI / official oracle data APIs are integrated
+                in production.
+              </p>
+            </div>
+
             <p className="text-sm text-muted-foreground mb-4">
-              Set a custom verification score for this bond:
+              Set a custom verification score for this bond (min 80 to approve):
             </p>
 
             {/* Quick Score Buttons */}

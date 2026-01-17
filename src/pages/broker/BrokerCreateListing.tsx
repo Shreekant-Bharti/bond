@@ -1179,6 +1179,32 @@ export default function BrokerCreateListing() {
                       showRefresh={false}
                     />
                   )}
+
+                  {/* Oracle Compliance Score (LISTER ONLY - visible during listing review)
+                      NOTE: This is DEMO/MOCK data. When RBI / official KYC APIs are integrated,
+                      this score will come from real oracle sources.
+                  */}
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-5 h-5 text-amber-500" />
+                      <span className="font-medium text-foreground">
+                        Oracle Compliance Score (Preview)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Estimated score based on issuer verification
+                      </span>
+                      <span className="text-lg font-bold text-amber-500">
+                        Pending Admin Review
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Your bond will be submitted for admin approval. The final
+                      Oracle Compliance Score will be calculated during the
+                      approval process. A score of 80+ is required for approval.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mt-6 flex justify-between">

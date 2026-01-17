@@ -444,3 +444,152 @@ export function generateTokenId(listerId: string, bondId: string): string {
   const timestamp = Date.now() % 10000;
   return `T${listerSuffix}${bondSuffix}${timestamp}`;
 }
+
+// ============================================
+// ADMIN NOTIFICATION SYSTEM
+// Notifications specifically for admin users
+// ============================================
+
+const ADMIN_NOTIFICATIONS_KEY = "bondfi_admin_notifications";
+
+export interface AdminNotification {
+  id: string;
+  type:
+    | "new_bond_request"
+    | "oracle_update"
+    | "new_user_request"
+    | "bond_edit_request"
+    | "info";
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  bondId?: string;
+  userId?: string;
+  oracleScore?: number;
+}
+
+/**
+ * Get all admin notifications
+ */
+export function getAdminNotifications(): AdminNotification[] {
+  try {
+    const stored = localStorage.getItem(ADMIN_NOTIFICATIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Add a notification for admin
+ * Used when:
+ * - New bond listing request from lister
+ * - Oracle score updated for a bond
+ * - New user registration request
+ * - Lister edit request
+ */
+export function addAdminNotification(
+  notification: Omit<AdminNotification, "id" | "timestamp" | "read">
+): void {
+  try {
+    const stored = localStorage.getItem(ADMIN_NOTIFICATIONS_KEY);
+    const notifications: AdminNotification[] = stored ? JSON.parse(stored) : [];
+
+    const newNotification: AdminNotification = {
+      ...notification,
+      id: `admin-notif-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 5)}`,
+      timestamp: new Date().toISOString(),
+      read: false,
+    };
+
+    notifications.push(newNotification);
+    localStorage.setItem(
+      ADMIN_NOTIFICATIONS_KEY,
+      JSON.stringify(notifications)
+    );
+  } catch (e) {
+    console.error("Error saving admin notification:", e);
+  }
+}
+
+/**
+ * Mark a single admin notification as read
+ */
+export function markAdminNotificationRead(notificationId: string): void {
+  try {
+    const stored = localStorage.getItem(ADMIN_NOTIFICATIONS_KEY);
+    const notifications: AdminNotification[] = stored ? JSON.parse(stored) : [];
+
+    const updated = notifications.map((n) =>
+      n.id === notificationId ? { ...n, read: true } : n
+    );
+
+    localStorage.setItem(ADMIN_NOTIFICATIONS_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Error marking admin notification as read:", e);
+  }
+}
+
+/**
+ * Mark all admin notifications as read
+ */
+export function markAllAdminNotificationsRead(): void {
+  try {
+    const stored = localStorage.getItem(ADMIN_NOTIFICATIONS_KEY);
+    const notifications: AdminNotification[] = stored ? JSON.parse(stored) : [];
+
+    const updated = notifications.map((n) => ({ ...n, read: true }));
+
+    localStorage.setItem(ADMIN_NOTIFICATIONS_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Error marking all admin notifications as read:", e);
+  }
+}
+
+/**
+ * Initialize demo admin notifications for testing
+ * Called when admin logs in and no notifications exist
+ */
+export function initializeAdminDemoNotifications(): void {
+  const existing = getAdminNotifications();
+  if (existing.length === 0) {
+    // Add some demo notifications for testing
+    const demoNotifications: Omit<
+      AdminNotification,
+      "id" | "timestamp" | "read"
+    >[] = [
+      {
+        type: "new_bond_request",
+        title: "New Bond Request - G-Sec 10Y",
+        message:
+          "Issuer ABCDE1234F submitted a government bond listing with 8% yield. Pending your approval.",
+        bondId: "demo-bond-001",
+      },
+      {
+        type: "oracle_update",
+        title: "Oracle Score Ready",
+        message:
+          "Bond #demo-bond-001 oracle compliance score: 85/100. Review and approve if score meets threshold.",
+        bondId: "demo-bond-001",
+        oracleScore: 85,
+      },
+      {
+        type: "new_user_request",
+        title: "New Lister Registration",
+        message:
+          "Alpha Securities (Broker) has registered and is pending KYC verification.",
+        userId: "demo-user-001",
+      },
+    ];
+
+    // Add with staggered timestamps
+    demoNotifications.forEach((notif, index) => {
+      setTimeout(() => {
+        addAdminNotification(notif);
+      }, index * 100);
+    });
+  }
+}

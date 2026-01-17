@@ -22,6 +22,7 @@ import {
 } from "@/lib/userStorage";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { AdminNotificationBell } from "@/components/ui/AdminNotificationBell";
 
 export default function AdminPendingUsers() {
   const navigate = useNavigate();
@@ -142,6 +143,7 @@ export default function AdminPendingUsers() {
               </p>
             </div>
           </div>
+          <AdminNotificationBell />
         </div>
       </header>
 

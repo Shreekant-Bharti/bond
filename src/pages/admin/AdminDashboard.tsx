@@ -22,9 +22,11 @@ import {
   getCurrentSession,
   clearCurrentSession,
   getRegisteredUsers,
+  initializeAdminDemoNotifications,
 } from "@/lib/userStorage";
 import { useBondContext } from "@/context/BondContext";
 import { cn } from "@/lib/utils";
+import { AdminNotificationBell } from "@/components/ui/AdminNotificationBell";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -38,6 +40,9 @@ export default function AdminDashboard() {
       return;
     }
     setAdmin(session);
+
+    // Initialize demo admin notifications if none exist
+    initializeAdminDemoNotifications();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -91,14 +96,17 @@ export default function AdminDashboard() {
               <p className="text-xs text-muted-foreground">{admin.email}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <AdminNotificationBell />
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
