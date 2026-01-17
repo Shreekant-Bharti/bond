@@ -14,6 +14,7 @@ export interface Bond {
   id: string;
   name: string;
   issuer: string;
+  issuerPan?: string; // Issuer PAN number
   yield: number;
   tenure: number; // in months
   value: number;
@@ -30,6 +31,7 @@ export interface Bond {
   description: string;
   listerSubType?: ListerSubType;
   listerId?: string; // ID of the lister who created the bond
+  weillchainTx?: string; // WeillChain transaction hash for tokenized bonds
   /**
    * Oracle Compliance Score (0-100)
    * NOTE: Currently this is DEMO/MOCK data.

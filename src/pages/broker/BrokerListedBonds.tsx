@@ -1,21 +1,93 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useBondContext } from "@/context/BondContext";
-import { FileText, TrendingUp, X, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { FileText, TrendingUp, X, BarChart3, ArrowUpRight, ArrowDownRight, ExternalLink, ChevronDown, ChevronUp, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OracleVerificationBadge } from "@/components/ui/oracle-verification-badge";
+import { getContractExplorerUrl, getTokenContract, getRecentTransactions, getExplorerUrl } from "@/api/weillchain-token";
+
+interface ContractData {
+  totalSupply: number;
+  circulatingSupply: number;
+  holdersCount: number;
+  oracleScore: number;
+  lastTxHash: string;
+  lastTxTime: string;
+}
+
+interface RecentTx {
+  txHash: string;
+  type: 'buy' | 'sell' | 'transfer';
+  amount: number;
+  timestamp: string;
+}
 
 export default function BrokerListedBonds() {
   const { bonds, broker, transactions, currentUser } = useBondContext();
-  // Show all bonds created by this lister (including pending approval)
   const listedBonds = bonds.filter(b => 
     broker.listedBonds.includes(b.id) || b.listerId === currentUser?.id || b.listerId === broker.id
   );
   const [selectedBond, setSelectedBond] = useState<string | null>(null);
+  const [showContractDetails, setShowContractDetails] = useState(false);
+  const [contractData, setContractData] = useState<ContractData | null>(null);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [recentTxs, setRecentTxs] = useState<RecentTx[]>([]);
 
   const selectedBondData = selectedBond ? bonds.find(b => b.id === selectedBond) : null;
+
+  // Fetch contract data from WeillChain
+  const fetchContractData = useCallback(async (bondId: string) => {
+    setContractLoading(true);
+    try {
+      const [data, txs] = await Promise.all([
+        getTokenContract(bondId),
+        getRecentTransactions(bondId, 5), // Limit to 5 recent txs
+      ]);
+      if (data) {
+        setContractData({
+          totalSupply: data.totalSupply,
+          circulatingSupply: data.circulatingSupply,
+          holdersCount: data.holdersCount,
+          oracleScore: data.oracleScore,
+          lastTxHash: data.lastTxHash,
+          lastTxTime: data.lastTxTime,
+        });
+      }
+      setRecentTxs(txs || []);
+    } catch (err) {
+      console.error('[WeillChain] Fetch error:', err);
+    } finally {
+      setContractLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showContractDetails && selectedBond) {
+      fetchContractData(selectedBond);
+    }
+  }, [showContractDetails, selectedBond, fetchContractData]);
+
+  useEffect(() => {
+    if (!selectedBond) {
+      setContractData(null);
+      setShowContractDetails(false);
+    }
+  }, [selectedBond]);
+
+  const formatTokens = (num: number): string => {
+    if (num >= 10000000) return `${(num / 10000000).toFixed(1)}Cr`;
+    if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
+    return num.toLocaleString();
+  };
+
+  const formatTimeAgo = (isoString: string): string => {
+    const diff = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
+  };
 
   // Calculate analytics for selected bond
   const getBondAnalytics = (bondId: string) => {
@@ -189,6 +261,128 @@ export default function BrokerListedBonds() {
 
               {/* Oracle Rate Verification */}
               <OracleVerificationBadge listingYield={selectedBondData.yield} className="mb-6" />
+
+              {/* WeillChain Token Contract - Inline Expandable */}
+              {selectedBondData.approvalStatus === 'approved' && (
+                <div className="mb-6">
+                  <button
+                    onClick={() => setShowContractDetails(!showContractDetails)}
+                    className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/30 hover:bg-primary/15 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">⛓️</span>
+                      <div className="text-left">
+                        <p className="font-medium text-foreground">Token Contract Deployed</p>
+                        <p className="text-xs text-muted-foreground">Click to view contract details</p>
+                      </div>
+                    </div>
+                    {showContractDetails ? (
+                      <ChevronUp className="w-5 h-5 text-primary" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-primary" />
+                    )}
+                  </button>
+                  
+                  {showContractDetails && (
+                    <div className="mt-2 p-4 rounded-xl bg-muted/10 border border-border/30 space-y-3 animate-fade-in">
+                      {contractLoading ? (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
+                          <span className="text-muted-foreground text-sm">Connecting to WeillChain...</span>
+                        </div>
+                      ) : contractData ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-lg bg-card/50">
+                              <p className="text-xs text-muted-foreground">📊 Total Supply</p>
+                              <p className="font-bold text-foreground">{formatTokens(contractData.totalSupply)} tokens</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-card/50">
+                              <p className="text-xs text-muted-foreground">👥 Holders</p>
+                              <p className="font-bold text-foreground">{contractData.holdersCount} active</p>
+                            </div>
+                          </div>
+                          
+                          <div className="p-3 rounded-lg bg-card/50">
+                            <p className="text-xs text-muted-foreground">⛓️ Oracle Score</p>
+                            <p className={cn(
+                              "font-bold",
+                              contractData.oracleScore >= 80 ? "text-success" : "text-warning"
+                            )}>
+                              {contractData.oracleScore}% {contractData.oracleScore >= 80 ? '✓' : '⚠'}
+                            </p>
+                          </div>
+                          
+                          <div className="p-3 rounded-lg bg-card/50">
+                            <p className="text-xs text-muted-foreground">📈 Latest Tx</p>
+                            <div className="flex items-center justify-between">
+                              <code className="text-sm font-mono text-foreground">{contractData.lastTxHash.slice(0, 14)}...</code>
+                              <span className="text-xs text-muted-foreground">{formatTimeAgo(contractData.lastTxTime)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <a
+                              href={contractData?.lastTxHash ? getExplorerUrl(contractData.lastTxHash) : getContractExplorerUrl()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center gap-2 p-3 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                            >
+                              <span>🔗</span>
+                              <span className="text-sm font-medium">View on unweil.me Dashboard</span>
+                              <ExternalLink className="w-4 h-4 ml-auto" />
+                            </a>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => fetchContractData(selectedBondData.id)}
+                              className="shrink-0"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          
+                          {/* Recent Transactions - Limited to 5 */}
+                          {recentTxs.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-border/30">
+                              <p className="text-xs text-muted-foreground mb-2">📜 Recent Transactions (5)</p>
+                              <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {recentTxs.slice(0, 5).map((tx, i) => (
+                                  <a
+                                    key={i}
+                                    href={getExplorerUrl(tx.txHash)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between p-2 rounded-lg bg-card/50 hover:bg-card/80 transition-colors text-sm"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-xs font-medium",
+                                        tx.type === 'buy' ? 'bg-success/20 text-success' :
+                                        tx.type === 'sell' ? 'bg-destructive/20 text-destructive' :
+                                        'bg-muted text-muted-foreground'
+                                      )}>
+                                        {tx.type.toUpperCase()}
+                                      </span>
+                                      <code className="font-mono text-xs text-muted-foreground">{tx.txHash.slice(0, 10)}...</code>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-foreground">{formatTokens(tx.amount)}</span>
+                                      <span className="text-xs text-muted-foreground">{formatTimeAgo(tx.timestamp)}</span>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-center py-4 text-muted-foreground">No contract data</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Analytics */}
               {(() => {

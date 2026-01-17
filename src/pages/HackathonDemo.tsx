@@ -238,12 +238,12 @@ const HackathonDemo = () => {
               {/* Explorer Link */}
               {weilChainStatus.txId && (
                 <a
-                  href={`https://explorer.weilliptic.ai/tx/${weilChainStatus.txId}`}
+                  href={`https://www.unweil.me/dashboard?tx=${weilChainStatus.txId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 w-full py-3 rounded-lg border border-[#00D4AA] text-[#00D4AA] font-semibold hover:bg-[#00D4AA]/10 transition-all flex items-center justify-center gap-2"
                 >
-                  View on WeilChain Explorer
+                  View on Weilliptic Explorer
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
