@@ -93,38 +93,42 @@ export default function AdminPendingBonds() {
 
   /**
    * Get Oracle Score for a bond
-   * Priority: 1) Admin overridden score, 2) Bond's stored oracleScore, 3) Generate demo score
-   * NOTE: Currently using DEMO/MOCK data. Real oracle integration pending.
+   * Priority: 1) Admin overridden score, 2) Bond's stored oracleScore, 3) Default to 0
    */
-  const getOracleScore = (bondId: string): number => {
-    // Check if admin has overridden this score
+  const getOracleScore = (bondId: string): number | null => {
     if (oracleScores[bondId] !== undefined) {
       return oracleScores[bondId];
     }
-    // Check if bond has a stored oracle score
     const bond = bonds.find((b) => b.id === bondId);
     if (bond?.oracleScore !== undefined) {
       return bond.oracleScore;
     }
-    // Generate a demo score (this simulates oracle response)
-    // TODO: Replace with real oracle API call when RBI/KYC APIs are integrated
-    return Math.floor(Math.random() * 30) + 60; // Demo: 60-90 range to test threshold
+    return null;
   };
 
-  /**
-   * Check if approval is allowed based on oracle score
-   * Rule: Oracle score must be >= 80 to approve
-   */
+  const getOracleStatusDisplay = (score: number | null) => {
+    if (score === null || score === undefined) {
+      return { text: "Oracle Pending", color: "bg-muted/20 text-muted-foreground" };
+    }
+    if (score >= 85) {
+      return { text: `${score}% Verified ✓`, color: "bg-success/20 text-success" };
+    }
+    if (score >= 30) {
+      return { text: `${score}% Pending ⚠`, color: "bg-warning/20 text-warning" };
+    }
+    return { text: `${score}% Failed ✗`, color: "bg-destructive/20 text-destructive" };
+  };
+
   const canApprove = (bondId: string): boolean => {
-    return getOracleScore(bondId) >= 80;
+    const score = getOracleScore(bondId);
+    return score !== null && score >= 80;
   };
 
   const handleApprove = (bondId: string) => {
     if (!admin) return;
 
-    // Enforce oracle score >= 80 rule
     const score = getOracleScore(bondId);
-    if (score < 80) {
+    if (score === null || score < 80) {
       toast({
         title: "Cannot Approve",
         description:
@@ -297,12 +301,10 @@ export default function AdminPendingBonds() {
                             <span
                               className={cn(
                                 "px-2 py-1 rounded-full text-xs font-semibold",
-                                getOracleScore(bond.id) >= 80
-                                  ? "bg-success/20 text-success"
-                                  : "bg-destructive/20 text-destructive"
+                                getOracleStatusDisplay(getOracleScore(bond.id)).color
                               )}
                             >
-                              {getOracleScore(bond.id)}%
+                              {getOracleStatusDisplay(getOracleScore(bond.id)).text}
                             </span>
                             <Button
                               size="sm"
@@ -328,8 +330,8 @@ export default function AdminPendingBonds() {
                               <Sliders className="w-3 h-3" />
                             </Button>
                           </div>
-                          {getOracleScore(bond.id) < 80 && (
-                            <span className="text-xs text-destructive">
+                          {(getOracleScore(bond.id) === null || getOracleScore(bond.id)! < 80) && (
+                            <span className="text-xs text-muted-foreground">
                               Score must be 80+ to approve
                             </span>
                           )}
