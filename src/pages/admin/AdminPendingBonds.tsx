@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { verifyBondWithAPI } from "@/lib/oracleService";
 import { AdminNotificationBell } from "@/components/ui/AdminNotificationBell";
 import { getOracleStatus, getOracleStatusClasses, canApproveBond } from "@/lib/oracleHelpers";
+import { Zap, Edit3 } from "lucide-react";
 
 export default function AdminPendingBonds() {
   const navigate = useNavigate();
@@ -42,6 +43,9 @@ export default function AdminPendingBonds() {
   const [verifyingBond, setVerifyingBond] = useState<string | null>(null);
   const [overrideModal, setOverrideModal] = useState<string | null>(null);
   const [customScore, setCustomScore] = useState(85);
+  const [editDemoModal, setEditDemoModal] = useState<string | null>(null);
+  const [editYield, setEditYield] = useState(8);
+  const [editOracleScore, setEditOracleScore] = useState(85);
 
   useEffect(() => {
     const session = getCurrentSession();
@@ -91,6 +95,88 @@ export default function AdminPendingBonds() {
       description: `Oracle score manually set to ${score}%. This override is for demo purposes only.`,
     });
   };
+
+  // ========== EIBS DEMO QUICK ACTIONS ==========
+  
+  // Approve Demo: Instantly tokenize with 95% oracle score
+  const handleApproveDemo = (bondId: string) => {
+    const bond = bonds.find((b) => b.id === bondId);
+    if (!bond) return;
+
+    // Set oracle score to 95% (verified)
+    setOracleScores((prev) => ({ ...prev, [bondId]: 95 }));
+    
+    // Approve the bond
+    const result = approveBond(bondId, true);
+    
+    if (result.success && bond.listerId) {
+      // Add notification for the lister
+      addNotification({
+        userId: bond.listerId,
+        message: `🎉 Your bond "${bond.name}" has been TOKENIZED! Oracle: 95% | Tx: 0x${bondId.slice(0,8)}demo`,
+        type: "success",
+        bondId: bondId,
+      });
+
+      toast({
+        title: "✅ Demo Approved & Tokenized!",
+        description: `${bond.name} → Oracle 95% | Status: Tokenized`,
+      });
+    }
+  };
+
+  // Reject Demo: Instantly reject with 25% oracle score
+  const handleRejectDemo = (bondId: string) => {
+    const bond = bonds.find((b) => b.id === bondId);
+    if (!bond) return;
+
+    // Set oracle score to 25% (flagged)
+    setOracleScores((prev) => ({ ...prev, [bondId]: 25 }));
+    
+    // Reject the bond
+    const result = approveBond(bondId, false);
+    
+    if (result.success && bond.listerId) {
+      addNotification({
+        userId: bond.listerId,
+        message: `❌ Your bond "${bond.name}" was REJECTED. Oracle: 25% (Rate Flagged)`,
+        type: "error",
+        bondId: bondId,
+      });
+
+      toast({
+        title: "❌ Demo Rejected!",
+        description: `${bond.name} → Oracle 25% | Status: Rejected`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Open Edit Demo Modal
+  const openEditDemoModal = (bondId: string) => {
+    const bond = bonds.find((b) => b.id === bondId);
+    if (bond) {
+      setEditYield(bond.yield);
+      setEditOracleScore(oracleScores[bondId] || bond.oracleScore || 75);
+      setEditDemoModal(bondId);
+    }
+  };
+
+  // Save Edit Demo changes (oracle score only - yield is display only in demo)
+  const handleSaveEditDemo = () => {
+    if (!editDemoModal) return;
+    
+    setOracleScores((prev) => ({ ...prev, [editDemoModal]: editOracleScore }));
+    
+    toast({
+      title: "⚙️ Demo Edit Saved!",
+      description: `Oracle Score: ${editOracleScore}%`,
+    });
+    
+    setEditDemoModal(null);
+  };
+
+  // ========== END EIBS DEMO QUICK ACTIONS ==========
 
   /**
    * Get Oracle Score for a bond (used for admin override only)
@@ -391,6 +477,38 @@ export default function AdminPendingBonds() {
                             Reject
                           </Button>
                         </div>
+                        {/* EIBS Demo Quick Actions */}
+                        <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/30">
+                          <span className="text-xs text-muted-foreground mr-1">Demo:</span>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveDemo(bond.id)}
+                            className="h-6 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            title="Instant approve with 95% oracle"
+                          >
+                            <Zap className="w-3 h-3 mr-1" />
+                            Approve ✅
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleRejectDemo(bond.id)}
+                            className="h-6 px-2 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            title="Instant reject with 25% oracle"
+                          >
+                            <Zap className="w-3 h-3 mr-1" />
+                            Reject ❌
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDemoModal(bond.id)}
+                            className="h-6 px-2 text-xs"
+                            title="Edit oracle score"
+                          >
+                            <Edit3 className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -665,6 +783,104 @@ export default function AdminPendingBonds() {
             >
               Cancel
             </Button>
+          </Card>
+        </div>
+      )}
+
+      {/* EIBS Demo Edit Modal */}
+      {editDemoModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6 bg-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-primary" />
+                Edit Demo Bond
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditDemoModal(null)}
+              >
+                <XCircle className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Oracle Score Slider */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Oracle Score: <span className={cn(
+                    "font-bold",
+                    editOracleScore >= 85 ? "text-success" : 
+                    editOracleScore >= 30 ? "text-warning" : "text-destructive"
+                  )}>{editOracleScore}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={editOracleScore}
+                  onChange={(e) => setEditOracleScore(Number(e.target.value))}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>0% (Flagged)</span>
+                  <span>50% (Review)</span>
+                  <span>100% (Verified)</span>
+                </div>
+              </div>
+
+              {/* Yield Display */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Yield: <span className="text-success">{editYield}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  step={0.5}
+                  value={editYield}
+                  onChange={(e) => setEditYield(Number(e.target.value))}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-success"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>1%</span>
+                  <span className="text-warning">12% (Flag threshold)</span>
+                  <span>20%</span>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-sm text-muted-foreground">Preview Status:</p>
+                <p className={cn(
+                  "font-semibold",
+                  editOracleScore >= 85 ? "text-success" : 
+                  editOracleScore >= 30 ? "text-warning" : "text-destructive"
+                )}>
+                  {editOracleScore >= 85 ? "✅ Verified" : 
+                   editOracleScore >= 30 ? "⚠️ Pending Review" : "❌ Rate Flagged"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                className="flex-1 bg-primary"
+                onClick={handleSaveEditDemo}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Save Demo
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setEditDemoModal(null)}
+              >
+                Cancel
+              </Button>
+            </div>
           </Card>
         </div>
       )}
